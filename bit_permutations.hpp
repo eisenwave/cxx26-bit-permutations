@@ -336,7 +336,7 @@ template <detail::signed_or_unsigned_integer T, detail::signed_or_unsigned_integ
     constexpr auto width = static_cast<S>(detail::width_v<T>);
     if constexpr (std::is_signed_v<S>) {
         if (s < 0) {
-            constexpr auto fill = static_cast<T>(std::is_signed_v<T> ? -1 : 0);
+            auto fill = static_cast<T>(x < 0 ? -1 : 0);
             return s <= -width ? fill : x >> -s;
         }
     }
@@ -354,7 +354,7 @@ template <detail::signed_or_unsigned_integer T, detail::signed_or_unsigned_integ
             return s <= -width ? static_cast<T>(0) : x << -s;
         }
     }
-    constexpr auto fill = static_cast<T>(std::is_signed_v<T> ? -1 : 0);
+    constexpr auto fill = static_cast<T>(x < 0 ? -1 : 0);
     return s >= width ? fill : x >> s;
 }
 
