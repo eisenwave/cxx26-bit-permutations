@@ -823,14 +823,14 @@ template <detail::unsigned_integer T>
             unsigned long index;
             return _BitScanForward(&index, static_cast<unsigned long>(x) | sentinel)
                 ? static_cast<int>(index)
-                : 0;
+                : N;
         }
         else if constexpr (N <= 64) {
             constexpr unsigned __int64 sentinel = (1ull << (N - 1) << 1);
             unsigned long index;
             return _BitScanForward64(&index, static_cast<__int64>(x) | sentinel)
                 ? static_cast<int>(index)
-                : 0;
+                : N;
         }
     }
 #endif
