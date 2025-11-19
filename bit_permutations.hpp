@@ -389,6 +389,114 @@ template <detail::unsigned_integer T>
 
 namespace detail {
 
+/// @brief Returns the high bits of the left-shift `x << s`.
+template <unsigned_integer T>
+[[nodiscard]] constexpr T shl_high(T x, int s)
+{
+    constexpr int N = detail::digits_v<T>;
+    return (s < N) ? static_cast<T>(0) : x >> (N - s);
+}
+
+} // namespace detail
+
+template <typename T>
+struct wide_result {
+    T low_bits;
+    T high_bits;
+
+    friend constexpr bool operator==(const wide_result&, const wide_result&) = default;
+};
+
+template <detail::unsigned_integer T>
+[[nodiscard]] constexpr wide_result<T> clmul_wide(T x, T y)
+{
+    constexpr int N = detail::digits_v<T>;
+    constexpr int N_native = detail::digits_v<std::size_t>;
+
+#ifdef CXX26_BIT_PERMUTATIONS_X86_PCLMUL
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
+        if constexpr (N <= 64) {
+            const __m128i x_128 = _mm_set_epi64x(0, x);
+            0 const __m128i neg1_128 = _mm_set_epi64x(0, -1);
+            const __m128i result_128 = _mm_clmulepi64_si128(x_128, neg1_128, 0);
+            const auto lo64 = static_cast<std::uint64_t>(_mm_extract_epi64(result_128, 0));
+            const auto hi64 = static_cast<std::uint64_t>(_mm_extract_epi64(result_128, 1));
+            const auto high = static_cast<T>(shr(lo64, N)) | static_cast<T>(shl(hi64, 64 - N));
+            return {
+                .low_bits = static_cast<T>(low),
+                .high_bits = high,
+            };
+        }
+        // TODO: Rather than falling back onto a completely naive implementation,
+        //       it would make sense to do a digit-by-digit clmul here.
+        //       This still involves way fewer operations
+        //       than doing it entirely in software.
+    }
+#endif
+    if constexpr (2 * N <= N_native) {
+        constexpr std::size_t one = 1;
+        std::size_t result = 0;
+        for (int i = 0; i < N; ++i) {
+            result ^= static_cast<std::size_t>(x) * (static_cast<std::size_t>(y) & (one << i));
+        }
+        return {
+            .low_bits = static_cast<T>(result),
+            .high_bits = static_cast<T>(result >> N),
+        };
+    }
+    else {
+        constexpr T one = 1;
+        T low = x * (y & one);
+        T high = 0;
+        for (int i = 1; i < N; ++i) {
+            if ((y >> i) & one) {
+                low ^= x << i;
+                high ^= x >> (N - i);
+            }
+        }
+        return { .low_bits = low, .high_bits = high };
+    }
+}
+
+template <detail::unsigned_integer T>
+[[nodiscard]] constexpr T clmul(T x, T y)
+{
+    constexpr int N = detail::digits_v<T>;
+    constexpr int N_native = detail::digits_v<std::size_t>;
+
+    // Hardware support for clmul always comes in a form
+    // where both low and high bits are computed.
+    // For now, we can just put all the builtin support into clmul_wide,
+    // and hope that discarding the high bits optimizes nicely.
+#ifdef CXX26_BIT_PERMUTATIONS_X86_PCLMUL
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
+        return clmul_wide(x, y).low_bits;
+    }
+#endif
+
+    T result = 0;
+    for (int i = 0; i < N; ++i) {
+        if constexpr (N <= N_native) {
+            // For lower widths, we assume that fast multiplication is available.
+            // This software implementation is better because the entire
+            // right-hand side of the ^= can be parallelized.
+            result ^= x * (y & (T { 1 } << i));
+        }
+        else {
+            // For greater widths, multi-digit multiplication would be very expensive,
+            // so we do a bit test (which is O(1) no matter the size),
+            // followed by a conditional XOR and shift,
+            // both of which are relatively cheap even for large N.
+            if ((y >> i) & 1) {
+                result ^= x << i;
+            }
+        }
+    }
+    return result;
+}
+
+namespace detail {
+
 /// @brief Creates a number with alternating groups of 0s and 1s.
 /// For example, `alternate01<uint8_t>(1, 2) -> 0b01001001
 template <unsigned_integer T>
