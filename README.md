@@ -1,3 +1,5 @@
+[![CMake on multiple platforms](https://github.com/eisenwave/cxx26-bit-permutations/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/eisenwave/cxx26-bit-permutations/actions/workflows/cmake-multi-platform.yml)
+
 # C++26 Bit Permutations
 
 This project implements
