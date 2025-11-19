@@ -4,6 +4,7 @@
 #include <array>
 #include <bit>
 #include <concepts>
+#include <cstdint>
 #include <limits>
 #include <version>
 
@@ -724,10 +725,10 @@ template <detail::unsigned_integer T>
     }
 #elif defined(CXX26_BIT_PERMUTATIONS_BUILTIN_POPCNT)
     if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
-        if constexpr (N <= digits_v<unsigned short>) {
+        if constexpr (N <= detail::digits_v<unsigned short>) {
             return static_cast<int>(__popcnt16(x));
         }
-        else if constexpr (N <= digits_v<unsigned int>) {
+        else if constexpr (N <= detail::digits_v<unsigned int>) {
             return static_cast<int>(__popcnt(x));
         }
         else if constexpr (N <= 64) {
