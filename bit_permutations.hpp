@@ -7,8 +7,8 @@
 #include <limits>
 #include <version>
 
-#define CXX26_BIT_PERMUTATIONS_DISABLE_BUILTINS
-#define CXX26_BIT_PERMUTATIONS_DISABLE_ARCH_INTRINSICS
+// #define CXX26_BIT_PERMUTATIONS_DISABLE_BUILTINS
+// #define CXX26_BIT_PERMUTATIONS_DISABLE_ARCH_INTRINSICS
 
 // DETECT GNU COMPILERS AND BUILTINS
 // =================================
@@ -354,7 +354,7 @@ template <detail::signed_or_unsigned_integer T, detail::signed_or_unsigned_integ
             return s <= -width ? static_cast<T>(0) : x << -s;
         }
     }
-    constexpr auto fill = static_cast<T>(x < 0 ? -1 : 0);
+    const auto fill = static_cast<T>(x < 0 ? -1 : 0);
     return s >= width ? fill : x >> s;
 }
 
@@ -417,13 +417,13 @@ template <detail::unsigned_integer T>
     if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 64) {
             const __m128i x_128 = _mm_set_epi64x(0, x);
-            0 const __m128i neg1_128 = _mm_set_epi64x(0, -1);
+            const __m128i neg1_128 = _mm_set_epi64x(0, -1);
             const __m128i result_128 = _mm_clmulepi64_si128(x_128, neg1_128, 0);
             const auto lo64 = static_cast<std::uint64_t>(_mm_extract_epi64(result_128, 0));
             const auto hi64 = static_cast<std::uint64_t>(_mm_extract_epi64(result_128, 1));
             const auto high = static_cast<T>(shr(lo64, N)) | static_cast<T>(shl(hi64, 64 - N));
             return {
-                .low_bits = static_cast<T>(low),
+                .low_bits = static_cast<T>(lo64),
                 .high_bits = high,
             };
         }
@@ -713,13 +713,13 @@ template <detail::unsigned_integer T>
     constexpr int N = detail::digits_v<T>;
 
 #ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_POPCOUNT
-    if constexpr (N <= digits_v<unsigned>) {
+    if constexpr (N <= detail::digits_v<unsigned>) {
         return __builtin_popcount(x);
     }
-    else if constexpr (N <= digits_v<unsigned long>) {
+    else if constexpr (N <= detail::digits_v<unsigned long>) {
         return __builtin_popcountl(x);
     }
-    else if constexpr (N <= digits_v<unsigned long long>) {
+    else if constexpr (N <= detail::digits_v<unsigned long long>) {
         return __builtin_popcountll(x);
     }
 #elif defined(CXX26_BIT_PERMUTATIONS_BUILTIN_POPCNT)
@@ -782,20 +782,20 @@ template <detail::unsigned_integer T>
     return __builtin_ctzg(x, N);
 #else
 #ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_CTZ
-    constexpr int N_ull = digits_v<unsigned long long>;
+    constexpr int N_ull = detail::digits_v<unsigned long long>;
     if constexpr (N <= N_ull) {
         if (x == 0) {
             return N;
         }
-        if constexpr (N <= digits_v<unsigned>) {
+        if constexpr (N <= detail::digits_v<unsigned>) {
             constexpr auto sentinel = (1u << (N - 1) << 1);
             return __builtin_ctz(x | sentinel);
         }
-        else if constexpr (N <= digits_v<unsigned long>) {
+        else if constexpr (N <= detail::digits_v<unsigned long>) {
             constexpr auto sentinel = (1ul << (N - 1) << 1);
             return __builtin_ctzl(x | sentinel);
         }
-        else if constexpr (N <= digits_v<unsigned long long>) {
+        else if constexpr (N <= detail::digits_v<unsigned long long>) {
             constexpr auto sentinel = (1ull << (N - 1) << 1);
             return __builtin_ctzll(x | sentinel);
         }
@@ -888,14 +888,14 @@ template <detail::unsigned_integer T>
     if (x == 0) {
         return N;
     }
-    if constexpr (N <= digits_v<unsigned>) {
-        return __builtin_clz(x) - (digits_v<unsigned> - N);
+    if constexpr (N <= detail::digits_v<unsigned>) {
+        return __builtin_clz(x) - (detail::digits_v<unsigned> - N);
     }
-    else if constexpr (N <= digits_v<unsigned long>) {
-        return __builtin_clzl(x) - (digits_v<unsigned long> - N);
+    else if constexpr (N <= detail::digits_v<unsigned long>) {
+        return __builtin_clzl(x) - (detail::digits_v<unsigned long> - N);
     }
-    else if constexpr (N <= digits_v<unsigned long long>) {
-        return __builtin_clzll(x) - (digits_v<unsigned long long> - N);
+    else if constexpr (N <= detail::digits_v<unsigned long long>) {
+        return __builtin_clzll(x) - (detail::digits_v<unsigned long long> - N);
     }
 #elif defined(CXX26_BIT_PERMUTATIONS_BUILTIN_LZCNT)
     if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
