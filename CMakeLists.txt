@@ -3,7 +3,11 @@ project(c++26-bit-permutations)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_executable(bit_permutations_test  ${HEADERS} test.cpp bit_permutations.hpp bit_permutations_naive.hpp)
+add_executable(bit_permutations_test
+  test.cpp
+  bit_permutations.hpp
+  bit_permutations_naive.hpp
+)
 target_compile_features(bit_permutations_test PRIVATE cxx_std_23)
 
 set(gcc_like_cxx "$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang,GNU,LCC>")
