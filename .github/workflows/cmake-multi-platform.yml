@@ -58,7 +58,7 @@ jobs:
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
     - name: Install dependencies (Ubuntu)
-      if: matrix.c_compiler == 'c_compiler'
+      if: matrix.c_compiler == 'clang'
       run: |
         sudo apt update
         sudo apt install -y ${{ matrix.stdlib_package }}
