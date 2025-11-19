@@ -81,6 +81,7 @@ jobs:
           EXTRA_CMAKE_FLAGS="-DCXX26_BIT_PERMUTATIONS_DISABLE_BUILTINS=1 -DCXX26_BIT_PERMUTATIONS_DISABLE_ARCH_INTRINSICS=1"
         fi
 
+        WS='${{ github.workspace }}'
         cmake \
         -B ${{ steps.strings.outputs.build-output-dir }} \
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
@@ -88,7 +89,7 @@ jobs:
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         -DCMAKE_CXX_FLAGS="$EXTRA_CXX_FLAGS" \
         $EXTRA_CMAKE_FLAGS \
-        -S '${{ github.workspace }}'
+        -S "${WS//\\//}"
 
     - name: Build
       # Build your program with the given configuration.
