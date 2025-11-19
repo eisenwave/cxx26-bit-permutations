@@ -184,6 +184,15 @@
 
 namespace cxx26bp::detail {
 
+template <typename T>
+inline constexpr int width_v = std::numeric_limits<std::make_unsigned_t<T>>::digits;
+
+template <typename T>
+inline constexpr int digits_v = std::numeric_limits<T>::digits;
+
+// __int128 ADDITIONAL SUPPORT
+// ===========================
+
 #ifdef CXX26_BIT_PERMUTATIONS_GNU
 #define CXX26_BIT_PERMUTATIONS_U128
 #pragma GCC diagnostic push
@@ -191,25 +200,23 @@ namespace cxx26bp::detail {
 using int128_t = __int128;
 using uint128_t = unsigned __int128;
 #pragma GCC diagnostic pop
-static_assert(std::numeric_limits<int128_t>::digits == 127);
-static_assert(std::numeric_limits<uint128_t>::digits == 128);
 #else
 struct int128_t;
 struct uint128_t;
 #endif // CXX26_BIT_PERMUTATIONS_GNU
 
-} // namespace cxx26bp::detail
+template <>
+inline constexpr int digits_v<int128_t> = 127;
+template <>
+inline constexpr int digits_v<uint128_t> = 128;
+
+template <>
+inline constexpr int width_v<int128_t> = 128;
+template <>
+inline constexpr int width_v<uint128_t> = 128;
 
 // _BitInt ADDITIONAL SUPPORT
 // ==========================
-
-namespace cxx26bp::detail {
-
-template <typename T>
-inline constexpr int width_v = std::numeric_limits<std::make_unsigned_t<T>>::digits;
-
-template <typename T>
-inline constexpr int digits_v = std::numeric_limits<T>::digits;
 
 template <typename T>
 struct is_bit_int : std::false_type { };
@@ -307,8 +314,14 @@ template <typename T>
 concept signed_or_unsigned_integer
     = standard_integer<T> || bit_precise_integer<T> || extended_integer<T>;
 
+// We cannot use `is_unsigned_v` because that also requires `T`
+// to be an arithmetic type,
+// which `__int128` isn't for GCC.
+
 template <typename T>
-concept unsigned_integer = signed_or_unsigned_integer<T> && std::is_unsigned_v<T>;
+concept unsigned_integer = signed_or_unsigned_integer<T> && !std::is_signed_v<T>;
+
+} // namespace detail
 
 /// @brief Saturating left-shift.
 /// This is necessary because left-shifting by the operand size or more is undefined behavior.
@@ -316,21 +329,34 @@ concept unsigned_integer = signed_or_unsigned_integer<T> && std::is_unsigned_v<T
 /// @param x the value to shift
 /// @param s the shift amount
 /// @return `x << s` if `s < N`, `0` otherwise.
-/// @throws Nothing.
-template <unsigned_integer T, signed_or_unsigned_integer S>
-[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T shl(T x, S s)
+/// If `s` is negative, shifts in the opposite direction.
+template <detail::signed_or_unsigned_integer T, detail::signed_or_unsigned_integer S>
+[[nodiscard]] constexpr T shl(T x, S s) noexcept
 {
-    if CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED {
+    constexpr auto width = static_cast<S>(detail::width_v<T>);
+    if constexpr (std::is_signed_v<S>) {
         if (s < 0) {
-            throw "shift by negative amount is not allowed";
+            constexpr auto fill = static_cast<T>(std::is_signed_v<T> ? -1 : 0);
+            return s <= -width ? fill : x >> -s;
         }
     }
-
-    constexpr int N = digits_v<T>;
-    return s >= N ? 0 : x << s;
+    return s >= width ? static_cast<T>(0) : x << s;
 }
 
-} // namespace detail
+/// @brief Equivalent to `shl(x, -s)`,
+/// but doesn't overflow on `-s`.
+template <detail::signed_or_unsigned_integer T, detail::signed_or_unsigned_integer S>
+[[nodiscard]] constexpr T shr(T x, S s) noexcept
+{
+    constexpr auto width = static_cast<S>(detail::width_v<T>);
+    if constexpr (std::is_signed_v<S>) {
+        if (s < 0) {
+            return s <= -width ? static_cast<T>(0) : x << -s;
+        }
+    }
+    constexpr auto fill = static_cast<T>(std::is_signed_v<T> ? -1 : 0);
+    return s >= width ? fill : x >> s;
+}
 
 /// @brief Repeats a bit pattern.
 /// @param x the bit-pattern, stored in the lest significant `length` bits.
@@ -338,7 +364,7 @@ template <unsigned_integer T, signed_or_unsigned_integer S>
 /// @return The bit pattern in `x`, repeated as many times as representable by `T`.
 /// @throws Nothing.
 template <detail::unsigned_integer T>
-[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T bit_repeat(T x, int length)
+[[nodiscard]] constexpr T bit_repeat(T x, int length)
 {
     constexpr int N = detail::digits_v<T>;
     constexpr T one = 1;
@@ -351,7 +377,7 @@ template <detail::unsigned_integer T>
 
     // Clear undesirable bits which are not part of the pattern.
     // For length == N, this does nothing.
-    x &= detail::shl(one, length) - 1;
+    x &= shl(one, length) - 1;
 
     CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
     for (int i = length; i < N; i <<= 1) {
@@ -1028,13 +1054,13 @@ template <detail::unsigned_integer T>
 }
 
 template <detail::unsigned_integer T>
-[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T bit_compress(T x, T m) noexcept
+[[nodiscard]] constexpr T bit_compress(T x, T m) noexcept
 {
     return bit_compressr(x, m);
 }
 
 template <detail::unsigned_integer T>
-[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T bit_expand(T x, T m) noexcept
+[[nodiscard]] constexpr T bit_expand(T x, T m) noexcept
 {
     return bit_expandr(x, m);
 }
