@@ -15,8 +15,8 @@ There is a single-header reference implementation of the functions
 - `bit_repeat`
 - `next_bit_permutation`
 - `prev_bit_permutation`
-- `bit_compressr`
-- `bit_expandr`
+- `bit_compressr` = `bit_compress`
+- `bit_expandr` = `bit_expand`
 - `bit_compressl`
 - `bit_expandl`
 

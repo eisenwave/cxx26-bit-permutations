@@ -4,7 +4,6 @@
 #include <array>
 #include <bit>
 #include <concepts>
-#include <cstdint>
 #include <limits>
 #include <version>
 
@@ -189,10 +188,13 @@ namespace cxx26bp::detail {
 #define CXX26_BIT_PERMUTATIONS_U128
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
+using int128_t = __int128;
 using uint128_t = unsigned __int128;
 #pragma GCC diagnostic pop
+static_assert(std::numeric_limits<int128_t>::digits == 127);
 static_assert(std::numeric_limits<uint128_t>::digits == 128);
 #else
+struct int128_t;
 struct uint128_t;
 #endif // CXX26_BIT_PERMUTATIONS_GNU
 
@@ -204,28 +206,40 @@ struct uint128_t;
 namespace cxx26bp::detail {
 
 template <typename T>
+inline constexpr int width_v = std::numeric_limits<std::make_unsigned_t<T>>::digits;
+
+template <typename T>
 inline constexpr int digits_v = std::numeric_limits<T>::digits;
 
 template <typename T>
-struct is_bit_uint : std::false_type { };
+struct is_bit_int : std::false_type { };
 
 #ifdef CXX26_BIT_PERMUTATIONS_BITINT
 #ifndef __INTELLISENSE__ // IntelliSense support for _BitInt is broken
 
 template <int N>
-struct is_bit_uint<unsigned _BitInt(N)> : std::true_type { };
+struct is_bit_int<signed _BitInt(N)> : std::true_type { };
+template <int N>
+struct is_bit_int<unsigned _BitInt(N)> : std::true_type { };
 
-static_assert(is_bit_uint<unsigned _BitInt(2)>::value);
-static_assert(is_bit_uint<unsigned _BitInt(8)>::value);
+static_assert(is_bit_int<signed _BitInt(2)>::value);
+static_assert(is_bit_int<unsigned _BitInt(8)>::value);
 
 template <int N>
 inline constexpr int digits_v<_BitInt(N)> = N - 1;
-
 template <int N>
 inline constexpr int digits_v<unsigned _BitInt(N)> = N;
 
 static_assert(digits_v<_BitInt(128)> == 127);
 static_assert(digits_v<unsigned _BitInt(128)> == 128);
+
+template <int N>
+inline constexpr int width_v<_BitInt(N)> = N;
+template <int N>
+inline constexpr int width_v<unsigned _BitInt(N)> = N;
+
+static_assert(width_v<_BitInt(128)> == 128);
+static_assert(width_v<unsigned _BitInt(128)> == 128);
 #endif // __INTELLISENSE__
 #endif // CXX26_BIT_PERMUTATIONS_BITINT
 
@@ -276,11 +290,25 @@ namespace detail {
 }
 
 template <typename T>
-concept bit_unsigned_integral = is_bit_uint<T>::value;
+concept standard_integer = //
+    std::same_as<T, signed char> || std::same_as<T, unsigned char> //
+    || std::same_as<T, short> || std::same_as<T, unsigned short> //
+    || std::same_as<T, int> || std::same_as<T, unsigned int> //
+    || std::same_as<T, long> || std::same_as<T, unsigned long> //
+    || std::same_as<T, long long> || std::same_as<T, unsigned long long>;
 
 template <typename T>
-concept permissive_unsigned_integral
-    = std::unsigned_integral<T> || bit_unsigned_integral<T> || std::same_as<T, uint128_t>;
+concept extended_integer = std::same_as<T, int128_t> || std::same_as<T, uint128_t>;
+
+template <typename T>
+concept bit_precise_integer = is_bit_int<T>::value;
+
+template <typename T>
+concept signed_or_unsigned_integer
+    = standard_integer<T> || bit_precise_integer<T> || extended_integer<T>;
+
+template <typename T>
+concept unsigned_integer = signed_or_unsigned_integer<T> && std::is_unsigned_v<T>;
 
 /// @brief Saturating left-shift.
 /// This is necessary because left-shifting by the operand size or more is undefined behavior.
@@ -289,8 +317,8 @@ concept permissive_unsigned_integral
 /// @param s the shift amount
 /// @return `x << s` if `s < N`, `0` otherwise.
 /// @throws Nothing.
-template <permissive_unsigned_integral T>
-[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T shl(T x, int s)
+template <unsigned_integer T, signed_or_unsigned_integer S>
+[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T shl(T x, S s)
 {
     if CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED {
         if (s < 0) {
@@ -302,15 +330,17 @@ template <permissive_unsigned_integral T>
     return s >= N ? 0 : x << s;
 }
 
+} // namespace detail
+
 /// @brief Repeats a bit pattern.
 /// @param x the bit-pattern, stored in the lest significant `length` bits.
 /// @param length the length of the bit-pattern, in range [1, inf)
 /// @return The bit pattern in `x`, repeated as many times as representable by `T`.
 /// @throws Nothing.
-template <permissive_unsigned_integral T>
+template <detail::unsigned_integer T>
 [[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T bit_repeat(T x, int length)
 {
-    constexpr int N = digits_v<T>;
+    constexpr int N = detail::digits_v<T>;
     constexpr T one = 1;
 
     if CXX26_BIT_PERMUTATIONS_CONSTANT_EVALUATED {
@@ -321,7 +351,7 @@ template <permissive_unsigned_integral T>
 
     // Clear undesirable bits which are not part of the pattern.
     // For length == N, this does nothing.
-    x &= shl(one, length) - 1;
+    x &= detail::shl(one, length) - 1;
 
     CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
     for (int i = length; i < N; i <<= 1) {
@@ -331,13 +361,11 @@ template <permissive_unsigned_integral T>
     return x;
 }
 
-} // namespace detail
-
 namespace detail {
 
 /// @brief Creates a number with alternating groups of 0s and 1s.
 /// For example, `alternate01<uint8_t>(1, 2) -> 0b01001001
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T alternate01(int zero_size,
                                                                            int one_size)
 {
@@ -378,177 +406,10 @@ inline constexpr auto alternating_bit_mask_table = [] {
     return result;
 }();
 
-template <permissive_unsigned_integral T>
-[[nodiscard]] constexpr int countr_zero(T x) noexcept
-{
-    constexpr int N = digits_v<T>;
-
-#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_CTZG
-    return __builtin_ctzg(x, N);
-#else
-#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_CTZ
-    constexpr int N_ull = digits_v<unsigned long long>;
-    if constexpr (N <= N_ull) {
-        if (x == 0) {
-            return N;
-        }
-        if constexpr (N <= digits_v<unsigned>) {
-            constexpr auto sentinel = (1u << (N - 1) << 1);
-            return __builtin_ctz(x | sentinel);
-        }
-        else if constexpr (N <= digits_v<unsigned long>) {
-            constexpr auto sentinel = (1ul << (N - 1) << 1);
-            return __builtin_ctzl(x | sentinel);
-        }
-        else if constexpr (N <= digits_v<unsigned long long>) {
-            constexpr auto sentinel = (1ull << (N - 1) << 1);
-            return __builtin_ctzll(x | sentinel);
-        }
-    }
-#elif defined(CXX26_BIT_PERMUTATIONS_X86_BMI)
-    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
-        if constexpr (N <= 16) {
-            constexpr auto sentinel = static_cast<unsigned short>(1u << (N - 1) << 1);
-            return _tzcnt_u16(x | sentinel);
-        }
-        else if constexpr (N <= 32) {
-            constexpr auto sentinel = 1u << (N - 1) << 1;
-            return _tzcnt_u32(x | sentinel);
-        }
-        else if constexpr (N <= 64) {
-            constexpr auto sentinel = 1ull << (N - 1) << 1;
-            return _tzcnt_u64(x | sentinel);
-        }
-    }
-#elif defined(CXX26_BIT_PERMUTATIONS_BUILTIN_BSF)
-    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
-        if constexpr (N <= 32) {
-            constexpr unsigned __int32 sentinel = (1u << (N - 1) << 1);
-            unsigned __int32 index;
-            return _BitScanForward(&index, x | sentinel) ? static_cast<int>(index) : 0;
-        }
-        else if constexpr (N <= 64) {
-            constexpr unsigned __int64 sentinel = (1ull << (N - 1) << 1);
-            unsigned __int32 index;
-            return _BitScanForward64(&index, x | sentinel) ? static_cast<int>(index) : 0;
-        }
-    }
-#endif
-    constexpr int N_nat = digits_v<std::size_t>;
-    if constexpr (N > N_nat) {
-        // Handle everything except for the most significant digit
-        int result = 0;
-        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
-        for (int i = 0; i + N_nat < N; i += N_nat) {
-            const int part = countr_zero(static_cast<std::size_t>(x));
-            result += part;
-            if (part != N_nat) {
-                return result;
-            }
-            x >>= N_nat;
-        }
-        // Handle the most significant digit.
-        constexpr auto sentinel
-            = static_cast<std::size_t>(N % N_nat == 0 ? 0 : std::size_t { 1 } << (N % N_nat));
-        return result
-            + countr_zero(static_cast<std::size_t>(static_cast<std::size_t>(x) | sentinel));
-    }
-    // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightParallel
-    else {
-        constexpr int M = std::bit_ceil<unsigned>(N);
-        constexpr int log_M = log2_floor(M);
-        int result = M;
-        x &= -x; // isolate the lowest 1-bit
-        result -= (x != 0);
-        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
-        for (int i = log_M - 1; i >= 0; --i) {
-            const T mask = detail::alternating_bit_mask_table<T>[i];
-            result -= ((x & mask) != 0) * (1 << i);
-        }
-        if constexpr (N == M) {
-            return result;
-        }
-        else {
-            return N < result ? N : result;
-        }
-    }
-#endif // CXX26_BIT_PERMUTATIONS_BUILTIN_CTZG
-}
-
-template <permissive_unsigned_integral T>
-[[nodiscard]] constexpr int countr_one(T x) noexcept
-{
-    return countr_zero(static_cast<T>(~x));
-}
-
-template <permissive_unsigned_integral T>
-[[nodiscard]] constexpr int countl_zero(T x) noexcept
-{
-    constexpr int N = digits_v<T>;
-
-#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_CLZG
-    return __builtin_clzg(x, N);
-#else
-#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_CLZ
-    if (x == 0) {
-        return N;
-    }
-    if constexpr (N <= digits_v<unsigned>) {
-        return __builtin_clz(x) - (digits_v<unsigned> - N);
-    }
-    else if constexpr (N <= digits_v<unsigned long>) {
-        return __builtin_clzl(x) - (digits_v<unsigned long> - N);
-    }
-    else if constexpr (N <= digits_v<unsigned long long>) {
-        return __builtin_clzll(x) - (digits_v<unsigned long long> - N);
-    }
-#elif defined(CXX26_BIT_PERMUTATIONS_BUILTIN_LZCNT)
-    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
-        if (x == 0) {
-            return N;
-        }
-        if constexpr (N <= 16) {
-            return static_cast<int>(__lzcnt16(x)) - (16 - N);
-        }
-        else if constexpr (N <= 32) {
-            return static_cast<int>(__lzcnt(x)) - (32 - N);
-        }
-        else if constexpr (N <= 64) {
-            return static_cast<int>(__lzcnt64(x)) - (64 - N);
-        }
-    }
-#endif // CXX26_BIT_PERMUTATIONS_MSVC
-
-    // TODO: ARM intrinsics
-
-    // TODO: digit-by-digit loop for large sizes
-    if (x == 0) {
-        return N;
-    }
-    constexpr int start = std::bit_ceil<unsigned>(N);
-    auto mask = static_cast<T>(-1);
-    int result = 0;
-    CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
-    for (int i = start >> 1; i != 0; i >>= 1) {
-        if (x & (mask << i)) {
-            mask <<= i;
-            result += i;
-        }
-    }
-    return N - result - 1;
-#endif // CXX26_BIT_PERMUTATIONS_BUILTIN_CLZG
-}
-
-template <permissive_unsigned_integral T>
-[[nodiscard]] constexpr int countl_one(T x) noexcept
-{
-    return countl_zero(static_cast<T>(~x));
-}
-
 /// @brief If byte-reversal for `T` is supported, returns `x` with its byte order reversed,
 /// and the return type deduces to `T`.
 /// Otherwise, return `void`.
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] auto optional_byteswap([[maybe_unused]] T x) noexcept
 {
     [[maybe_unused]] constexpr int N = digits_v<T>;
@@ -578,80 +439,10 @@ template <permissive_unsigned_integral T>
 #endif
 }
 
-// `std::popcount` does not accept _BitInt or other extensions, so we make our own.
-template <permissive_unsigned_integral T>
-[[nodiscard]] constexpr int popcount(T x) noexcept
-{
-#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_POPCOUNTG
-    return __builtin_popcountg(x);
-#else
-    constexpr int N = digits_v<T>;
-
-#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_POPCOUNT
-    if constexpr (N <= digits_v<unsigned>) {
-        return __builtin_popcount(x);
-    }
-    else if constexpr (N <= digits_v<unsigned long>) {
-        return __builtin_popcountl(x);
-    }
-    else if constexpr (N <= digits_v<unsigned long long>) {
-        return __builtin_popcountll(x);
-    }
-#elif defined(CXX26_BIT_PERMUTATIONS_BUILTIN_POPCNT)
-    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
-        if constexpr (N <= digits_v<unsigned short>) {
-            return static_cast<int>(__popcnt16(x));
-        }
-        else if constexpr (N <= digits_v<unsigned int>) {
-            return static_cast<int>(__popcnt(x));
-        }
-        else if constexpr (N <= 64) {
-            return static_cast<int>(__popcnt64(x));
-        }
-    }
-#endif
-    constexpr int N_native = digits_v<std::size_t>;
-    if constexpr (N > N_native) {
-        int sum = 0;
-        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
-        for (int i = 0; i < N; i += N_native) {
-            sum += popcount(static_cast<std::size_t>(x));
-            x >>= N_native;
-        }
-        return sum;
-    }
-    else if constexpr (N == 1) {
-        return x;
-    }
-    else if constexpr (N == 2) {
-        return (x >> 1) + (x & 1);
-    }
-    else if constexpr (N == 3) {
-        return (x >> 2) + ((x >> 1) & 1) + (x & 1);
-    }
-    else {
-        constexpr int log_N = detail::log2_ceil(N);
-
-        constexpr auto mask1 = detail::alternating_bit_mask_table<T>[0];
-        constexpr auto mask2 = detail::alternating_bit_mask_table<T>[1];
-
-        T result = x - ((x >> 1) & mask1);
-        result = ((result >> 2) & mask2) + (result & mask2);
-
-        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
-        for (int i = 2; i < log_N; ++i) {
-            const auto mask = detail::alternating_bit_mask_table<T>[i];
-            result = ((result >> (1 << i)) + result) & mask;
-        }
-        return result;
-    }
-#endif // CXX26_BIT_PERMUTATIONS_BUILTIN_POPCOUNTG
-}
-
 /// Each bit in `x` is converted to the parity a bit and all bits to its right.
 /// This can also be expressed as `CLMUL(x, -1)` where `CLMUL` is a carry-less
 /// multiplication.
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr T bitwise_inclusive_right_parity(T x) noexcept
 {
     constexpr int N = digits_v<T>;
@@ -676,7 +467,7 @@ template <permissive_unsigned_integral T>
     return x;
 }
 
-template <int N, permissive_unsigned_integral T>
+template <int N, unsigned_integer T>
 [[nodiscard]] constexpr T bit_reverse_impl(T x) noexcept
 {
     constexpr int N_actual = digits_v<T>;
@@ -778,14 +569,251 @@ template <int N, permissive_unsigned_integral T>
 
 } // namespace detail
 
-template <detail::permissive_unsigned_integral T>
+// `std::popcount` does not accept _BitInt or other extensions, so we make our own.
+template <detail::unsigned_integer T>
+[[nodiscard]] constexpr int popcount(T x) noexcept
+{
+#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_POPCOUNTG
+    return __builtin_popcountg(x);
+#else
+    constexpr int N = detail::digits_v<T>;
+
+#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_POPCOUNT
+    if constexpr (N <= digits_v<unsigned>) {
+        return __builtin_popcount(x);
+    }
+    else if constexpr (N <= digits_v<unsigned long>) {
+        return __builtin_popcountl(x);
+    }
+    else if constexpr (N <= digits_v<unsigned long long>) {
+        return __builtin_popcountll(x);
+    }
+#elif defined(CXX26_BIT_PERMUTATIONS_BUILTIN_POPCNT)
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
+        if constexpr (N <= digits_v<unsigned short>) {
+            return static_cast<int>(__popcnt16(x));
+        }
+        else if constexpr (N <= digits_v<unsigned int>) {
+            return static_cast<int>(__popcnt(x));
+        }
+        else if constexpr (N <= 64) {
+            return static_cast<int>(__popcnt64(x));
+        }
+    }
+#endif
+    constexpr int N_native = detail::digits_v<std::size_t>;
+    if constexpr (N > N_native) {
+        int sum = 0;
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+        for (int i = 0; i < N; i += N_native) {
+            sum += popcount(static_cast<std::size_t>(x));
+            x >>= N_native;
+        }
+        return sum;
+    }
+    else if constexpr (N == 1) {
+        return x;
+    }
+    else if constexpr (N == 2) {
+        return (x >> 1) + (x & 1);
+    }
+    else if constexpr (N == 3) {
+        return (x >> 2) + ((x >> 1) & 1) + (x & 1);
+    }
+    else {
+        constexpr int log_N = detail::log2_ceil(N);
+
+        constexpr auto mask1 = detail::alternating_bit_mask_table<T>[0];
+        constexpr auto mask2 = detail::alternating_bit_mask_table<T>[1];
+
+        T result = x - ((x >> 1) & mask1);
+        result = ((result >> 2) & mask2) + (result & mask2);
+
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+        for (int i = 2; i < log_N; ++i) {
+            const auto mask = detail::alternating_bit_mask_table<T>[i];
+            result = ((result >> (1 << i)) + result) & mask;
+        }
+        return result;
+    }
+#endif // CXX26_BIT_PERMUTATIONS_BUILTIN_POPCOUNTG
+}
+
+template <detail::unsigned_integer T>
+[[nodiscard]] constexpr int countr_zero(T x) noexcept
+{
+    constexpr int N = detail::digits_v<T>;
+
+#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_CTZG
+    return __builtin_ctzg(x, N);
+#else
+#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_CTZ
+    constexpr int N_ull = digits_v<unsigned long long>;
+    if constexpr (N <= N_ull) {
+        if (x == 0) {
+            return N;
+        }
+        if constexpr (N <= digits_v<unsigned>) {
+            constexpr auto sentinel = (1u << (N - 1) << 1);
+            return __builtin_ctz(x | sentinel);
+        }
+        else if constexpr (N <= digits_v<unsigned long>) {
+            constexpr auto sentinel = (1ul << (N - 1) << 1);
+            return __builtin_ctzl(x | sentinel);
+        }
+        else if constexpr (N <= digits_v<unsigned long long>) {
+            constexpr auto sentinel = (1ull << (N - 1) << 1);
+            return __builtin_ctzll(x | sentinel);
+        }
+    }
+#elif defined(CXX26_BIT_PERMUTATIONS_X86_BMI)
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
+        if constexpr (N <= 16) {
+            constexpr auto sentinel = static_cast<unsigned short>(1u << (N - 1) << 1);
+            return _tzcnt_u16(x | sentinel);
+        }
+        else if constexpr (N <= 32) {
+            constexpr auto sentinel = 1u << (N - 1) << 1;
+            return _tzcnt_u32(x | sentinel);
+        }
+        else if constexpr (N <= 64) {
+            constexpr auto sentinel = 1ull << (N - 1) << 1;
+            return _tzcnt_u64(x | sentinel);
+        }
+    }
+#elif defined(CXX26_BIT_PERMUTATIONS_BUILTIN_BSF)
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
+        if constexpr (N <= 32) {
+            constexpr unsigned __int32 sentinel = (1u << (N - 1) << 1);
+            unsigned __int32 index;
+            return _BitScanForward(&index, x | sentinel) ? static_cast<int>(index) : 0;
+        }
+        else if constexpr (N <= 64) {
+            constexpr unsigned __int64 sentinel = (1ull << (N - 1) << 1);
+            unsigned __int32 index;
+            return _BitScanForward64(&index, x | sentinel) ? static_cast<int>(index) : 0;
+        }
+    }
+#endif
+    constexpr int N_nat = detail::digits_v<std::size_t>;
+    if constexpr (N > N_nat) {
+        // Handle everything except for the most significant digit
+        int result = 0;
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+        for (int i = 0; i + N_nat < N; i += N_nat) {
+            const int part = countr_zero(static_cast<std::size_t>(x));
+            result += part;
+            if (part != N_nat) {
+                return result;
+            }
+            x >>= N_nat;
+        }
+        // Handle the most significant digit.
+        constexpr auto sentinel
+            = static_cast<std::size_t>(N % N_nat == 0 ? 0 : std::size_t { 1 } << (N % N_nat));
+        return result
+            + countr_zero(static_cast<std::size_t>(static_cast<std::size_t>(x) | sentinel));
+    }
+    // https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightParallel
+    else {
+        constexpr int M = std::bit_ceil<unsigned>(N);
+        constexpr int log_M = detail::log2_floor(M);
+        int result = M;
+        x &= -x; // isolate the lowest 1-bit
+        result -= (x != 0);
+        CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+        for (int i = log_M - 1; i >= 0; --i) {
+            const T mask = detail::alternating_bit_mask_table<T>[i];
+            result -= ((x & mask) != 0) * (1 << i);
+        }
+        if constexpr (N == M) {
+            return result;
+        }
+        else {
+            return N < result ? N : result;
+        }
+    }
+#endif // CXX26_BIT_PERMUTATIONS_BUILTIN_CTZG
+}
+
+template <detail::unsigned_integer T>
+[[nodiscard]] constexpr int countr_one(T x) noexcept
+{
+    return countr_zero(static_cast<T>(~x));
+}
+
+template <detail::unsigned_integer T>
+[[nodiscard]] constexpr int countl_zero(T x) noexcept
+{
+    constexpr int N = detail::digits_v<T>;
+
+#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_CLZG
+    return __builtin_clzg(x, N);
+#else
+#ifdef CXX26_BIT_PERMUTATIONS_BUILTIN_CLZ
+    if (x == 0) {
+        return N;
+    }
+    if constexpr (N <= digits_v<unsigned>) {
+        return __builtin_clz(x) - (digits_v<unsigned> - N);
+    }
+    else if constexpr (N <= digits_v<unsigned long>) {
+        return __builtin_clzl(x) - (digits_v<unsigned long> - N);
+    }
+    else if constexpr (N <= digits_v<unsigned long long>) {
+        return __builtin_clzll(x) - (digits_v<unsigned long long> - N);
+    }
+#elif defined(CXX26_BIT_PERMUTATIONS_BUILTIN_LZCNT)
+    if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
+        if (x == 0) {
+            return N;
+        }
+        if constexpr (N <= 16) {
+            return static_cast<int>(__lzcnt16(x)) - (16 - N);
+        }
+        else if constexpr (N <= 32) {
+            return static_cast<int>(__lzcnt(x)) - (32 - N);
+        }
+        else if constexpr (N <= 64) {
+            return static_cast<int>(__lzcnt64(x)) - (64 - N);
+        }
+    }
+#endif // CXX26_BIT_PERMUTATIONS_MSVC
+
+    // TODO: ARM intrinsics
+
+    // TODO: digit-by-digit loop for large sizes
+    if (x == 0) {
+        return N;
+    }
+    constexpr int start = std::bit_ceil<unsigned>(N);
+    auto mask = static_cast<T>(-1);
+    int result = 0;
+    CXX26_BIT_PERMUTATIONS_AGGRESSIVE_UNROLL
+    for (int i = start >> 1; i != 0; i >>= 1) {
+        if (x & (mask << i)) {
+            mask <<= i;
+            result += i;
+        }
+    }
+    return N - result - 1;
+#endif // CXX26_BIT_PERMUTATIONS_BUILTIN_CLZG
+}
+
+template <detail::unsigned_integer T>
+[[nodiscard]] constexpr int countl_one(T x) noexcept
+{
+    return countl_zero(static_cast<T>(~x));
+}
+
+template <detail::unsigned_integer T>
 [[nodiscard]] constexpr T bit_reverse(T x) noexcept
 {
     constexpr int N = detail::digits_v<T>;
     return detail::bit_reverse_impl<N>(x);
 }
 
-template <detail::permissive_unsigned_integral T>
+template <detail::unsigned_integer T>
 [[nodiscard]] constexpr T next_bit_permutation(T x) noexcept
 {
     // https://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
@@ -795,10 +823,10 @@ template <detail::permissive_unsigned_integral T>
         return 0;
     }
     // Two shifts are better than shifting by + 1. We must not shift by the operand size.
-    return (t + one) | (((~t & -~t) - one) >> detail::countr_zero(x) >> one);
+    return (t + one) | (((~t & -~t) - one) >> countr_zero(x) >> one);
 }
 
-template <detail::permissive_unsigned_integral T>
+template <detail::unsigned_integer T>
 [[nodiscard]] constexpr T prev_bit_permutation(T x) noexcept
 {
     constexpr T one = 1;
@@ -807,13 +835,12 @@ template <detail::permissive_unsigned_integral T>
         return 0;
     }
     const T trailing_ones = x ^ trailing_ones_cleared;
-    const int shift
-        = detail::countr_zero(trailing_ones_cleared) - detail::countr_one(trailing_ones) - 1;
+    const int shift = countr_zero(trailing_ones_cleared) - countr_one(trailing_ones) - 1;
 
     return static_cast<T>(trailing_ones_cleared - one) >> shift << shift;
 }
 
-template <detail::permissive_unsigned_integral T>
+template <detail::unsigned_integer T>
 [[nodiscard]] constexpr T bit_compressr(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
@@ -861,7 +888,7 @@ template <detail::permissive_unsigned_integral T>
             const auto compressed
                 = bit_compressr(static_cast<std::size_t>(x), static_cast<std::size_t>(m));
             result |= static_cast<T>(compressed) << offset;
-            offset += detail::popcount(static_cast<std::size_t>(m));
+            offset += popcount(static_cast<std::size_t>(m));
             x >>= N_native;
             m >>= N_native;
         }
@@ -888,7 +915,7 @@ template <detail::permissive_unsigned_integral T>
     }
 }
 
-template <detail::permissive_unsigned_integral T>
+template <detail::unsigned_integer T>
 [[nodiscard]] constexpr T bit_expandr(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
@@ -934,7 +961,7 @@ template <detail::permissive_unsigned_integral T>
             const auto expanded
                 = bit_expandr(static_cast<std::size_t>(x), static_cast<std::size_t>(m));
             result |= static_cast<T>(expanded) << mask_bits;
-            x >>= detail::popcount(static_cast<std::size_t>(m));
+            x >>= popcount(static_cast<std::size_t>(m));
             m >>= N_native;
         }
 
@@ -968,7 +995,7 @@ template <detail::permissive_unsigned_integral T>
     }
 }
 
-template <detail::permissive_unsigned_integral T>
+template <detail::unsigned_integer T>
 [[nodiscard]] constexpr T bit_compressl(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
@@ -979,12 +1006,12 @@ template <detail::permissive_unsigned_integral T>
     if (m == 0) { // Prevents shift which is >= the operand size.
         return 0;
     }
-    int shift = N - detail::popcount(m);
+    int shift = N - popcount(m);
     return static_cast<T>(bit_compressr(x, m) << shift);
 #endif
 }
 
-template <detail::permissive_unsigned_integral T>
+template <detail::unsigned_integer T>
 [[nodiscard]] constexpr T bit_expandl(T x, T m) noexcept
 {
     constexpr int N = detail::digits_v<T>;
@@ -995,9 +1022,21 @@ template <detail::permissive_unsigned_integral T>
     if (m == 0) {
         return 0;
     }
-    const int shift = N - detail::popcount(m);
+    const int shift = N - popcount(m);
     return bit_expandr(static_cast<T>(x >> shift), m);
 #endif
+}
+
+template <detail::unsigned_integer T>
+[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T bit_compress(T x, T m) noexcept
+{
+    return bit_compressr(x, m);
+}
+
+template <detail::unsigned_integer T>
+[[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T bit_expand(T x, T m) noexcept
+{
+    return bit_expandr(x, m);
 }
 
 } // namespace cxx26bp

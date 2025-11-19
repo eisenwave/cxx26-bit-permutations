@@ -10,7 +10,7 @@ namespace cxx26bp::detail {
 /// @param length the length of the bit-pattern, in range [1, N]
 /// @return The bit pattern in `x`, repeated as many times as representable by `T`.
 /// @throws Nothing.
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] CXX26_BIT_PERMUTATIONS_ALWAYS_INLINE constexpr T bit_repeat_naive(T x, int length)
 {
     constexpr int N = digits_v<T>;
@@ -24,7 +24,7 @@ template <permissive_unsigned_integral T>
 }
 
 // Exposed as a separate function for testing purposes.
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr T bit_reverse_naive(T x) noexcept
 {
     constexpr int N = digits_v<T>;
@@ -40,7 +40,7 @@ template <permissive_unsigned_integral T>
     return result;
 }
 
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr int countr_one_naive(T x) noexcept
 {
     int result = 0;
@@ -51,25 +51,25 @@ template <permissive_unsigned_integral T>
     return result;
 }
 
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr int countr_zero_naive(T x) noexcept
 {
     return countr_one_naive(static_cast<T>(~x));
 }
 
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr int countl_zero_naive(T x) noexcept
 {
     return countr_zero_naive(bit_reverse_naive(x));
 }
 
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr int countl_one_naive(T x) noexcept
 {
     return countl_zero_naive(static_cast<T>(~x));
 }
 
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr int popcount_naive(T x) noexcept
 {
     int result = 0;
@@ -80,7 +80,7 @@ template <permissive_unsigned_integral T>
     return result;
 }
 
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr T bitwise_inclusive_right_parity_naive(T x) noexcept
 {
     constexpr int N = digits_v<T>;
@@ -95,7 +95,7 @@ template <permissive_unsigned_integral T>
     return result;
 }
 
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr T next_bit_permutation_naive(T x) noexcept
 {
     const int count = popcount(x);
@@ -103,7 +103,7 @@ template <permissive_unsigned_integral T>
     return x;
 }
 
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr T prev_bit_permutation_naive(T x) noexcept
 {
     const int count = popcount(x);
@@ -111,7 +111,7 @@ template <permissive_unsigned_integral T>
     return x;
 }
 
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr T bit_compressr_naive(T x, T m) noexcept
 {
     constexpr int N = digits_v<T>;
@@ -125,7 +125,7 @@ template <permissive_unsigned_integral T>
     return result;
 }
 
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr T bit_compressl_naive(T x, T m) noexcept
 {
     const T xr = bit_reverse_naive(x);
@@ -133,7 +133,7 @@ template <permissive_unsigned_integral T>
     return bit_reverse_naive(bit_compressr_naive(xr, mr));
 }
 
-template <permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr T bit_expandr_naive(T x, T m) noexcept
 {
     constexpr int N = digits_v<T>;
@@ -147,7 +147,7 @@ template <permissive_unsigned_integral T>
     return result;
 }
 
-template <detail::permissive_unsigned_integral T>
+template <unsigned_integer T>
 [[nodiscard]] constexpr T bit_expandl_naive(T x, T m) noexcept
 {
     const T xr = bit_reverse_naive(x);
