@@ -63,22 +63,29 @@ jobs:
         sudo apt update
         sudo apt install -y ${{ matrix.stdlib_package }}
 
-    - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory.
-      # `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+    - name: Configure CMake (Linux)
+      if: runner.os == 'Linux'
       run: |
         EXTRA_FLAGS=""
         if [[ "${{ matrix.c_compiler }}" == gcc || "${{ matrix.c_compiler }}" == clang ]]; then
           EXTRA_FLAGS="-march=native"
         fi
-
-        cmake
+        cmake \
         -B ${{ steps.strings.outputs.build-output-dir }} \
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         -DCMAKE_CXX_FLAGS="${EXTRA_FLAGS}" \
+        -S ${{ github.workspace }}
+
+    - name: Configure CMake (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        cmake \
+        -B ${{ steps.strings.outputs.build-output-dir }} \
+        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
+        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
         -S ${{ github.workspace }}
 
     - name: Build
