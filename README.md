@@ -1,10 +1,13 @@
 # C++26 Bit Permutations
 
-This project is a reference implementation for
-[Pxxxx: Bit Permutations](https://eisenwave.github.io/cpp-proposals/bit-permutations.html)
-(new proposal, not yet published).
+This project implements
+[P3104: Bit Permutations](https://eisenwave.github.io/cpp-proposals/bit-permutations.html).
+Ironically, while this project has "C++26" in its name,
+the proposal didn't make it into C++26,
+but will almost certainly be in C++29.
+See <https://github.com/cplusplus/papers/issues/1768> for its status.
 
-This project provides a single-header reference implementation of the functions
+There is a single-header reference implementation of the functions
 
 - `bit_reverse`
 - `bit_repeat`
@@ -27,8 +30,9 @@ to circumvent them:
 
 All functions are located in namespace `cxx26bp`.
 
-This implementation aims to provide the fastest possible library implementation for each of these
-functions, using any possible hardware support.
+This implementation aims to provide the fastest possible library implementation
+for each of these functions,
+using any possible hardware support.
 This project is portable, and tries to support
 
 - **Architectures:** x86, ARM
