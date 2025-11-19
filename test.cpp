@@ -270,6 +270,35 @@ void text_prev_bit_permutation()
     ASSERT_S(F(7) == 0);
 }
 
+template <std::uint32_t (&F)(std::uint32_t, int)>
+void test_shl_unsigned()
+{
+    ASSERT_S(F(1u, 0) == 1u);
+    ASSERT_S(F(1u, 10) == 1024u);
+    ASSERT_S(F(1u, 10000) == 0u);
+    ASSERT_S(F(1u, 10000) == 0u);
+
+    constexpr auto all = static_cast<std::uint32_t>(-1);
+    ASSERT_S(F(all, 0) == all);
+    ASSERT_S(F(1024u, -2) == 256u);
+    ASSERT_S(F(1024u, -10000) == 0u);
+    ASSERT_S(F(all, -10000) == 0);
+}
+
+template <std::int32_t (&F)(std::int32_t, int)>
+void test_shl_signed()
+{
+    ASSERT_S(F(1, 0) == 1);
+    ASSERT_S(F(1, 10) == 1024);
+    ASSERT_S(F(1, 10000) == 0);
+    ASSERT_S(F(1, 10000) == 0);
+
+    ASSERT_S(F(-1, 0) == -1);
+    ASSERT_S(F(1024, -2) == 256);
+    ASSERT_S(F(1024, -10000) == 0);
+    ASSERT_S(F(-1, -10000) == -1);
+}
+
 constexpr int seed = 0x12345;
 #ifndef FUZZ_COUNT
 #ifdef NDEBUG
@@ -415,6 +444,11 @@ constexpr void (*tests[])() = {
 #ifndef __INTELLISENSE__
     test_bit_repeat<bit_repeat>,
     test_bit_repeat<bit_repeat_naive>,
+
+    test_shl_unsigned<shl>,
+    test_shl_unsigned<shl>,
+    test_shl_signed<shl>,
+    test_shl_signed<shl>,
 
     test_popcount<popcount>,
     test_popcount<popcount_naive>,
