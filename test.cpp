@@ -621,7 +621,7 @@ constexpr void (*tests[])() = {
     FUZZ_2(std::uint16_t, bit_expandl, default_fuzz_count),
     FUZZ_2(std::uint32_t, bit_expandl, default_fuzz_count),
     FUZZ_2(std::uint64_t, bit_expandl, default_fuzz_count),
-    IF_U128(FUZZ_2(detail::uint128_t, bit_expandl, small_fuzz_count)),
+    IF_U128(FUZZ_2(detail::uint128_t, bit_expandl, small_fuzz_count),)
     IF_BITINT(FUZZ_2(unsigned _BitInt(2), bit_expandl, default_fuzz_count),)
     IF_BITINT(FUZZ_2(unsigned _BitInt(3), bit_expandl, default_fuzz_count),)
     IF_BITINT(FUZZ_2(unsigned _BitInt(4), bit_expandl, default_fuzz_count),)
