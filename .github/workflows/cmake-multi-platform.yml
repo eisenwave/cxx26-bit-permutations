@@ -69,21 +69,25 @@ jobs:
 
     - name: Configure CMake
       run: |
-        EXTRA_FLAGS=""
+        EXTRA_CXX_FLAGS=""
         if [[ "${{ matrix.c_compiler }}" == gcc || "${{ matrix.c_compiler }}" == clang ]]; then
-          EXTRA_FLAGS="-march=native"
+          EXTRA_CXX_FLAGS="-march=native"
         else
-          EXTRA_FLAGS="/arch:AVX2"
+          EXTRA_CXX_FLAGS="/arch:AVX2"
         fi
+
+        EXTRA_CMAKE_FLAGS=""
         if [[ "${{ matrix.target }}" == portable ]]; then
-          EXTRA_FLAGS="$EXTRA_FLAGS -DCXX26_BIT_PERMUTATIONS_DISABLE_BUILTINS=1 -DCXX26_BIT_PERMUTATIONS_DISABLE_ARCH_INTRINSICS"
+          EXTRA_CMAKE_FLAGS="-DCXX26_BIT_PERMUTATIONS_DISABLE_BUILTINS=1 -DCXX26_BIT_PERMUTATIONS_DISABLE_ARCH_INTRINSICS=1"
         fi
+
         cmake \
         -B ${{ steps.strings.outputs.build-output-dir }} \
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-        -DCMAKE_CXX_FLAGS="$EXTRA_FLAGS" \
+        -DCMAKE_CXX_FLAGS="$EXTRA_CXX_FLAGS" \
+        $EXTRA_CMAKE_FLAGS \
         -S ${{ github.workspace }}
 
     - name: Build
