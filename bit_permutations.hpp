@@ -297,8 +297,8 @@ namespace detail {
 }
 
 template <typename T>
-concept standard_integer = //
-    std::same_as<T, signed char> || std::same_as<T, unsigned char> //
+concept standard_integer //
+    = std::same_as<T, signed char> || std::same_as<T, unsigned char> //
     || std::same_as<T, short> || std::same_as<T, unsigned short> //
     || std::same_as<T, int> || std::same_as<T, unsigned int> //
     || std::same_as<T, long> || std::same_as<T, unsigned long> //
