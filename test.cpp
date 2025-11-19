@@ -273,13 +273,15 @@ void text_prev_bit_permutation()
 constexpr int seed = 0x12345;
 #ifndef FUZZ_COUNT
 #ifdef NDEBUG
-constexpr int default_fuzz_count = 1024 * 1024 * 16;
-#else
 constexpr int default_fuzz_count = 1024 * 1024;
+#else
+constexpr int default_fuzz_count = 1024 * 16;
 #endif
 #else
 constexpr int default_fuzz_count = FUZZ_COUNT;
 #endif
+constexpr int small_fuzz_count = default_fuzz_count / 16;
+
 using rng_type = std::mt19937_64;
 using distr_type = std::uniform_int_distribution<uint64_t>;
 
@@ -398,10 +400,10 @@ void naive_fuzz_bit_repeat()
 #define IF_BITINT_SUPER_WIDE(...)
 #endif
 
-#define FUZZ_1(T, f) naive_fuzz_1<T, f<T>, f##_naive<T>>
-#define FUZZ_2(T, f) naive_fuzz_2<T, f<T>, f##_naive<T>>
-#define FUZZ_INT(T, f) naive_fuzz_int<T, f<T>, f##_naive<T>>
-#define FUZZ_REPEAT(T, f) naive_fuzz_bit_repeat<T, f<T>, f##_naive<T>>
+#define FUZZ_1(T, f, c) naive_fuzz_1<T, f<T>, f##_naive<T>, c>
+#define FUZZ_2(T, f, c) naive_fuzz_2<T, f<T>, f##_naive<T>, c>
+#define FUZZ_INT(T, f, c) naive_fuzz_int<T, f<T>, f##_naive<T>, c>
+#define FUZZ_REPEAT(T, f, c) naive_fuzz_bit_repeat<T, f<T>, f##_naive<T>, c>
 
 // clang-format off
 constexpr void (*tests[])() = {
@@ -444,192 +446,191 @@ constexpr void (*tests[])() = {
     text_prev_bit_permutation<prev_bit_permutation>,
     text_prev_bit_permutation<prev_bit_permutation_naive>,
     
-    FUZZ_REPEAT(std::uint8_t,  bit_repeat),
-    FUZZ_REPEAT(std::uint16_t, bit_repeat),
-    FUZZ_REPEAT(std::uint32_t, bit_repeat),
-    FUZZ_REPEAT(std::uint64_t, bit_repeat),
-    IF_U128(FUZZ_REPEAT(detail::uint128_t, bit_repeat),)
-    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(2), bit_repeat),)
-    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(3), bit_repeat),)
-    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(4), bit_repeat),)
-    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(5), bit_repeat),)
-    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(6), bit_repeat),)
-    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(7), bit_repeat),)
-    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(8), bit_repeat),)
-    IF_BITINT_SUPER_WIDE(FUZZ_REPEAT(unsigned _BitInt(200), bit_repeat),)
-    IF_BITINT_SUPER_WIDE(FUZZ_REPEAT(unsigned _BitInt(256), bit_repeat),)
+    FUZZ_REPEAT(std::uint8_t,  bit_repeat, default_fuzz_count),
+    FUZZ_REPEAT(std::uint16_t, bit_repeat, default_fuzz_count),
+    FUZZ_REPEAT(std::uint32_t, bit_repeat, default_fuzz_count),
+    FUZZ_REPEAT(std::uint64_t, bit_repeat, default_fuzz_count),
+    IF_U128(FUZZ_REPEAT(detail::uint128_t, bit_repeat, small_fuzz_count),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(2), bit_repeat, default_fuzz_count),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(3), bit_repeat, default_fuzz_count),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(4), bit_repeat, default_fuzz_count),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(5), bit_repeat, default_fuzz_count),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(6), bit_repeat, default_fuzz_count),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(7), bit_repeat, default_fuzz_count),)
+    IF_BITINT(FUZZ_REPEAT(unsigned _BitInt(8), bit_repeat, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_REPEAT(unsigned _BitInt(200), bit_repeat, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_REPEAT(unsigned _BitInt(256), bit_repeat, small_fuzz_count),)
 
-    FUZZ_INT(std::uint8_t,  popcount),
-    FUZZ_INT(std::uint16_t, popcount),
-    FUZZ_INT(std::uint32_t, popcount),
-    FUZZ_INT(std::uint64_t, popcount),
-    IF_U128(FUZZ_INT(detail::uint128_t, popcount),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(2), popcount),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(3), popcount),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(4), popcount),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(5), popcount),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(6), popcount),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(7), popcount),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(8), popcount),)
-    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), popcount),)
-    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), popcount),)
+    FUZZ_INT(std::uint8_t,  popcount, default_fuzz_count),
+    FUZZ_INT(std::uint16_t, popcount, default_fuzz_count),
+    FUZZ_INT(std::uint32_t, popcount, default_fuzz_count),
+    FUZZ_INT(std::uint64_t, popcount, default_fuzz_count),
+    IF_U128(FUZZ_INT(detail::uint128_t, popcount, small_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(2), popcount, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(3), popcount, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(4), popcount, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(5), popcount, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(6), popcount, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(7), popcount, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(8), popcount, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), popcount, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), popcount, small_fuzz_count),)
 
-    FUZZ_INT(std::uint8_t,  countl_zero),
-    FUZZ_INT(std::uint16_t, countl_zero),
-    FUZZ_INT(std::uint32_t, countl_zero),
-    FUZZ_INT(std::uint64_t, countl_zero),
-    IF_U128(FUZZ_INT(detail::uint128_t, countl_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(2), countl_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(3), countl_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(4), countl_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(5), countl_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countl_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countl_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countl_zero),)
-    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countl_zero),)
-    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countl_zero),)
+    FUZZ_INT(std::uint8_t,  countl_zero, default_fuzz_count),
+    FUZZ_INT(std::uint16_t, countl_zero, default_fuzz_count),
+    FUZZ_INT(std::uint32_t, countl_zero, default_fuzz_count),
+    FUZZ_INT(std::uint64_t, countl_zero, default_fuzz_count),
+    IF_U128(FUZZ_INT(detail::uint128_t, countl_zero, small_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(2), countl_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(3), countl_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(4), countl_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(5), countl_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countl_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countl_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countl_zero, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countl_zero, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countl_zero, small_fuzz_count),)
 
-    FUZZ_INT(std::uint8_t,  countr_zero),
-    FUZZ_INT(std::uint16_t, countr_zero),
-    FUZZ_INT(std::uint32_t, countr_zero),
-    FUZZ_INT(std::uint64_t, countr_zero),
-    IF_U128(FUZZ_INT(detail::uint128_t, countr_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(2), countr_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(3), countr_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(4), countr_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(5), countr_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countr_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countr_zero),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countr_zero),)
-    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countr_zero),)
-    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countr_zero),)
+    FUZZ_INT(std::uint8_t,  countr_zero, default_fuzz_count),
+    FUZZ_INT(std::uint16_t, countr_zero, default_fuzz_count),
+    FUZZ_INT(std::uint32_t, countr_zero, default_fuzz_count),
+    FUZZ_INT(std::uint64_t, countr_zero, default_fuzz_count),
+    IF_U128(FUZZ_INT(detail::uint128_t, countr_zero, small_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(2), countr_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(3), countr_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(4), countr_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(5), countr_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countr_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countr_zero, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countr_zero, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countr_zero, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countr_zero, small_fuzz_count),)
 
-    FUZZ_INT(std::uint8_t,  countl_one),
-    FUZZ_INT(std::uint16_t, countl_one),
-    FUZZ_INT(std::uint32_t, countl_one),
-    FUZZ_INT(std::uint64_t, countl_one),
-    IF_U128(FUZZ_INT(detail::uint128_t, countl_one),)
-    IF_U128(FUZZ_INT(detail::uint128_t, countl_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(2), countl_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(3), countl_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(4), countl_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(5), countl_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countl_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countl_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countl_one),)
-    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countl_one),)
-    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countl_one),)
+    FUZZ_INT(std::uint8_t,  countl_one, default_fuzz_count),
+    FUZZ_INT(std::uint16_t, countl_one, default_fuzz_count),
+    FUZZ_INT(std::uint32_t, countl_one, default_fuzz_count),
+    FUZZ_INT(std::uint64_t, countl_one, default_fuzz_count),
+    IF_U128(FUZZ_INT(detail::uint128_t, countl_one, small_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(2), countl_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(3), countl_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(4), countl_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(5), countl_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countl_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countl_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countl_one, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countl_one, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countl_one, small_fuzz_count),)
 
-    FUZZ_INT(std::uint8_t,  countr_one),
-    FUZZ_INT(std::uint16_t, countr_one),
-    FUZZ_INT(std::uint32_t, countr_one),
-    FUZZ_INT(std::uint64_t, countr_one),
-    IF_U128(FUZZ_INT(detail::uint128_t, countr_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(2), countr_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(3), countr_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(4), countr_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(5), countr_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countr_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countr_one),)
-    IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countr_one),)
-    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countr_one),)
-    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countr_one),)
+    FUZZ_INT(std::uint8_t,  countr_one, default_fuzz_count),
+    FUZZ_INT(std::uint16_t, countr_one, default_fuzz_count),
+    FUZZ_INT(std::uint32_t, countr_one, default_fuzz_count),
+    FUZZ_INT(std::uint64_t, countr_one, default_fuzz_count),
+    IF_U128(FUZZ_INT(detail::uint128_t, countr_one, small_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(2), countr_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(3), countr_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(4), countr_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(5), countr_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(6), countr_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(7), countr_one, default_fuzz_count),)
+    IF_BITINT(FUZZ_INT(unsigned _BitInt(8), countr_one, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(200), countr_one, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_INT(unsigned _BitInt(256), countr_one, small_fuzz_count),)
 
-    FUZZ_1(std::uint8_t,  bit_reverse),
-    FUZZ_1(std::uint16_t, bit_reverse),
-    FUZZ_1(std::uint32_t, bit_reverse),
-    FUZZ_1(std::uint64_t, bit_reverse),
-    IF_U128(FUZZ_1(detail::uint128_t, bit_reverse),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(2), bit_reverse),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(3), bit_reverse),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(4), bit_reverse),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(5), bit_reverse),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(6), bit_reverse),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(7), bit_reverse),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(8), bit_reverse),)
-    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(200), bit_reverse),)
-    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(256), bit_reverse),)
+    FUZZ_1(std::uint8_t,  bit_reverse, default_fuzz_count),
+    FUZZ_1(std::uint16_t, bit_reverse, default_fuzz_count),
+    FUZZ_1(std::uint32_t, bit_reverse, default_fuzz_count),
+    FUZZ_1(std::uint64_t, bit_reverse, default_fuzz_count),
+    IF_U128(FUZZ_1(detail::uint128_t, bit_reverse, small_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(2), bit_reverse, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(3), bit_reverse, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(4), bit_reverse, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(5), bit_reverse, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(6), bit_reverse, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(7), bit_reverse, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(8), bit_reverse, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(200), bit_reverse, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(256), bit_reverse, small_fuzz_count),)
 
-    FUZZ_1(std::uint8_t,  bitwise_inclusive_right_parity),
-    FUZZ_1(std::uint16_t, bitwise_inclusive_right_parity),
-    FUZZ_1(std::uint32_t, bitwise_inclusive_right_parity),
-    FUZZ_1(std::uint64_t, bitwise_inclusive_right_parity),
-    IF_U128(FUZZ_1(detail::uint128_t, bitwise_inclusive_right_parity),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(2), bitwise_inclusive_right_parity),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(3), bitwise_inclusive_right_parity),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(4), bitwise_inclusive_right_parity),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(5), bitwise_inclusive_right_parity),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(6), bitwise_inclusive_right_parity),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(7), bitwise_inclusive_right_parity),)
-    IF_BITINT(FUZZ_1(unsigned _BitInt(8), bitwise_inclusive_right_parity),)
-    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(200), bitwise_inclusive_right_parity),)
-    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(256), bitwise_inclusive_right_parity),)
+    FUZZ_1(std::uint8_t,  bitwise_inclusive_right_parity, default_fuzz_count),
+    FUZZ_1(std::uint16_t, bitwise_inclusive_right_parity, default_fuzz_count),
+    FUZZ_1(std::uint32_t, bitwise_inclusive_right_parity, default_fuzz_count),
+    FUZZ_1(std::uint64_t, bitwise_inclusive_right_parity, default_fuzz_count),
+    IF_U128(FUZZ_1(detail::uint128_t, bitwise_inclusive_right_parity, small_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(2), bitwise_inclusive_right_parity, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(3), bitwise_inclusive_right_parity, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(4), bitwise_inclusive_right_parity, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(5), bitwise_inclusive_right_parity, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(6), bitwise_inclusive_right_parity, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(7), bitwise_inclusive_right_parity, default_fuzz_count),)
+    IF_BITINT(FUZZ_1(unsigned _BitInt(8), bitwise_inclusive_right_parity, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(200), bitwise_inclusive_right_parity, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_1(unsigned _BitInt(256), bitwise_inclusive_right_parity, small_fuzz_count),)
 
 
     // TODO: Large fuzz-testing these against a naive implementation is not viable
     //       because the algorithm has exponential complexity.
-    FUZZ_1(std::uint8_t,  next_bit_permutation),
-    FUZZ_1(std::uint8_t,  prev_bit_permutation),
+    FUZZ_1(std::uint8_t,  next_bit_permutation, small_fuzz_count),
+    FUZZ_1(std::uint8_t,  prev_bit_permutation, small_fuzz_count),
 
-    FUZZ_2(std::uint8_t,  bit_compressr),
-    FUZZ_2(std::uint16_t, bit_compressr),
-    FUZZ_2(std::uint32_t, bit_compressr),
-    FUZZ_2(std::uint64_t, bit_compressr),
-    IF_U128(FUZZ_2(detail::uint128_t, bit_compressr)),
-    IF_BITINT(FUZZ_2(unsigned _BitInt(2), bit_compressr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(3), bit_compressr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(4), bit_compressr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(5), bit_compressr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_compressr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_compressr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_compressr),)
-    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_compressr),)
-    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_compressr),)
+    FUZZ_2(std::uint8_t,  bit_compressr, default_fuzz_count),
+    FUZZ_2(std::uint16_t, bit_compressr, default_fuzz_count),
+    FUZZ_2(std::uint32_t, bit_compressr, default_fuzz_count),
+    FUZZ_2(std::uint64_t, bit_compressr, default_fuzz_count),
+    IF_U128(FUZZ_2(detail::uint128_t, bit_compressr, small_fuzz_count)),
+    IF_BITINT(FUZZ_2(unsigned _BitInt(2), bit_compressr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(3), bit_compressr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(4), bit_compressr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(5), bit_compressr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_compressr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_compressr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_compressr, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_compressr, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_compressr, small_fuzz_count),)
 
-    FUZZ_2(std::uint8_t,  bit_compressl),
-    FUZZ_2(std::uint16_t, bit_compressl),
-    FUZZ_2(std::uint32_t, bit_compressl),
-    FUZZ_2(std::uint64_t, bit_compressl),
-    IF_U128(FUZZ_2(detail::uint128_t, bit_compressl)),
-    IF_BITINT(FUZZ_2(unsigned _BitInt(2), bit_compressl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(3), bit_compressl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(4), bit_compressl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(5), bit_compressl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_compressl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_compressl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_compressl),)
-    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_compressl),)
-    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_compressl),)
+    FUZZ_2(std::uint8_t,  bit_compressl, default_fuzz_count),
+    FUZZ_2(std::uint16_t, bit_compressl, default_fuzz_count),
+    FUZZ_2(std::uint32_t, bit_compressl, default_fuzz_count),
+    FUZZ_2(std::uint64_t, bit_compressl, default_fuzz_count),
+    IF_U128(FUZZ_2(detail::uint128_t, bit_compressl, small_fuzz_count)),
+    IF_BITINT(FUZZ_2(unsigned _BitInt(2), bit_compressl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(3), bit_compressl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(4), bit_compressl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(5), bit_compressl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_compressl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_compressl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_compressl, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_compressl, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_compressl, small_fuzz_count),)
 
-    FUZZ_2(std::uint8_t,  bit_expandr),
-    FUZZ_2(std::uint16_t, bit_expandr),
-    FUZZ_2(std::uint32_t, bit_expandr),
-    FUZZ_2(std::uint64_t, bit_expandr),
-    IF_U128(FUZZ_2(detail::uint128_t, bit_expandr)),
-    IF_BITINT(FUZZ_2(unsigned _BitInt(2), bit_expandr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(3), bit_expandr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(4), bit_expandr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(5), bit_expandr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_expandr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_expandr),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_expandr),)
-    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_expandr),)
-    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_expandr),)
+    FUZZ_2(std::uint8_t,  bit_expandr, default_fuzz_count),
+    FUZZ_2(std::uint16_t, bit_expandr, default_fuzz_count),
+    FUZZ_2(std::uint32_t, bit_expandr, default_fuzz_count),
+    FUZZ_2(std::uint64_t, bit_expandr, default_fuzz_count),
+    IF_U128(FUZZ_2(detail::uint128_t, bit_expandr, small_fuzz_count)),
+    IF_BITINT(FUZZ_2(unsigned _BitInt(2), bit_expandr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(3), bit_expandr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(4), bit_expandr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(5), bit_expandr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_expandr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_expandr, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_expandr, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_expandr, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_expandr, small_fuzz_count),)
 
-    FUZZ_2(std::uint8_t,  bit_expandl),
-    FUZZ_2(std::uint16_t, bit_expandl),
-    FUZZ_2(std::uint32_t, bit_expandl),
-    FUZZ_2(std::uint64_t, bit_expandl),
-    IF_U128(FUZZ_2(detail::uint128_t, bit_expandl)),
-    IF_BITINT(FUZZ_2(unsigned _BitInt(2), bit_expandl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(3), bit_expandl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(4), bit_expandl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(5), bit_expandl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_expandl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_expandl),)
-    IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_expandl),)
-    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_expandl),)
-    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_expandl),)
+    FUZZ_2(std::uint8_t,  bit_expandl, default_fuzz_count),
+    FUZZ_2(std::uint16_t, bit_expandl, default_fuzz_count),
+    FUZZ_2(std::uint32_t, bit_expandl, default_fuzz_count),
+    FUZZ_2(std::uint64_t, bit_expandl, default_fuzz_count),
+    IF_U128(FUZZ_2(detail::uint128_t, bit_expandl, small_fuzz_count)),
+    IF_BITINT(FUZZ_2(unsigned _BitInt(2), bit_expandl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(3), bit_expandl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(4), bit_expandl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(5), bit_expandl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(6), bit_expandl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(7), bit_expandl, default_fuzz_count),)
+    IF_BITINT(FUZZ_2(unsigned _BitInt(8), bit_expandl, default_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(200), bit_expandl, small_fuzz_count),)
+    IF_BITINT_SUPER_WIDE(FUZZ_2(unsigned _BitInt(256), bit_expandl, small_fuzz_count),)
 #endif
 };
 // clang-format on
