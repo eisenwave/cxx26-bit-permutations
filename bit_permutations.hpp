@@ -819,14 +819,18 @@ template <detail::unsigned_integer T>
 #elif defined(CXX26_BIT_PERMUTATIONS_BUILTIN_BSF)
     if CXX26_BIT_PERMUTATIONS_NOT_CONSTANT_EVALUATED {
         if constexpr (N <= 32) {
-            constexpr unsigned __int32 sentinel = (1u << (N - 1) << 1);
-            unsigned __int32 index;
-            return _BitScanForward(&index, x | sentinel) ? static_cast<int>(index) : 0;
+            constexpr unsigned long sentinel = (1ul << (N - 1) << 1);
+            unsigned long index;
+            return _BitScanForward(&index, static_cast<unsigned long>(x) | sentinel)
+                ? static_cast<int>(index)
+                : 0;
         }
         else if constexpr (N <= 64) {
             constexpr unsigned __int64 sentinel = (1ull << (N - 1) << 1);
-            unsigned __int32 index;
-            return _BitScanForward64(&index, x | sentinel) ? static_cast<int>(index) : 0;
+            unsigned long index;
+            return _BitScanForward64(&index, static_cast<__int64>(x) | sentinel)
+                ? static_cast<int>(index)
+                : 0;
         }
     }
 #endif
